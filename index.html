@@ -1,0 +1,561 @@
+<!-- <!doctype html>
+<html lang="ar">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>نتيجة مدرسة الرحاب الخاصة</title>
+
+<style>
+    body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; direction: rtl; margin: 0; padding: 0; background: linear-gradient(135deg, #cce0f0, #f5f7fb); } .container { max-width: 800px; margin: 20px auto; padding: 20px; } .card { background: white; border-radius: 25px; box-shadow: 0 15px 40px rgba(0,0,0,0.15); padding: 40px 30px 30px 30px; position: relative; } .page-title { text-align: center; font-size: 28px; color: #13245C; margin-bottom: 30px; font-weight: 700; } .logo-container { width: 80px; height: 80px; border-radius: 50%; border: 3px solid #13245C; position: absolute; top: -40px; left: 30px; background: white; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden; } .logo-container img { width: 65px; height: 65px; object-fit: contain; } .controls { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 30px; } .input-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px; } label.small { font-size: 16px; color: #555; white-space: nowrap; flex-shrink: 0; margin-right: -200px; } input[type="text"] { width: 300px; padding: 12px; font-size: 16px; border-radius: 12px; border: 1px solid #b0c7d8; } input[type="text"]:focus { outline: none; border-color: #0b79a6; box-shadow: 0 0 10px rgba(11,121,166,0.25); } button { width: 320px; padding: 15px; font-size: 16px; border-radius: 12px; border: none; background: #13245C; color: white; font-weight: 600; cursor: pointer; transition: all 0.3s ease; } button:hover { background: #095b7c; transform: translateY(-2px); } .result { margin-top: 25px; overflow-x: auto; } table { width: 100%; border-collapse: collapse; font-size: 18px; margin-top: 15px; } th, td { padding: 12px 16px; border: 1px solid #e6eef5; text-align: center; } th { background: #13245C; color: white; font-weight: 700; font-size: 20px; } tbody tr:nth-child(even) { background: #f0f9fc; } tbody tr:hover { background: #d6edf8; transition: background 0.2s; } td.grade { font-weight: 700; font-size: 20px; } .error { color: #b00020; font-weight: 700; text-align: center; margin-top: 12px; } @media(max-width:580px){ .basic-info-table th { display: none; } .input-row { flex-direction: column; width: 100%; align-items: center; } label.small, input[type="text"], button { width: 100% !important; max-width: 100% !important; margin-right: 0 !important; text-align: center; } label.small { margin-right: 0 !important; font-size: 16px; } input[type="text"] { width: 100% !important; } .basic-info-table, .basic-info-table tbody, .basic-info-table tr, .basic-info-table td { display: block; } .basic-info-table td { position: relative; padding: 14px 120px 14px 12px; margin-bottom: 10px; background: #d6edf8; font-size: 15px; font-weight: 600; border-radius: 6px; border: 1px solid #e6eef5; text-align: center; direction: rtl; } .basic-info-table td::before { content: attr(data-label); position: absolute; right: 0; top: 0; height: 100%; width: 110px; background:#13245C ; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; border-radius: 6px 0 0 6px; border-left: 1px solid #e6eef5; } }
+    
+    
+    </style>
+</head>
+
+<body>
+<div class="container">
+  <div class="card">
+
+    <h1 class="page-title">نتيجة طلاب مدرسة الرحاب الخاصة</h1>
+
+    <div class="logo-container">
+      <img src="./img/logo.jpeg" alt="لوغو مدرسة الرحاب">
+    </div>
+
+    <div class="controls">
+
+      <div class="input-row stage-select">
+        <label>
+          <input type="radio" name="stage" value="third" >
+          الصف الثالث الإعدادي
+        </label>
+
+        <label>
+          <input type="radio" name="stage" value="firstSecond">
+          الصف الأول والثاني الإعدادي
+        </label>
+      </div>
+
+      <div class="input-row">
+        <label class="small">اكتب الرقم القومي للطالب:</label>
+        <input id="nid" type="text" inputmode="numeric">
+      </div>
+
+      <button id="searchBtn">عرض النتيجة</button>
+    </div>
+
+    <div id="result" class="result"></div>
+  </div>
+</div>
+<script>
+
+const SHEET_THIRD =
+'https://docs.google.com/spreadsheets/d/e/2PACX-1vRJAxdgUI5pUBoIogJAJh13Acag1fSFKt81yYyyC2uzRqqiKNOpdjJ5HXutF2jrkCSG_Nogpq8Urn7B/pub?gid=113470722&single=true&output=csv';
+
+const SHEET_FIRST_SECOND =
+'https://docs.google.com/spreadsheets/d/e/2PACX-1vTw2OFehhiL7Roa9ozieN6KBIH12KwnDFVM4_GPfGXr4lYRDBCWsvC6PjWrl1wEzmoKbe4MfTNl6htH/pub?gid=924070172&single=true&output=csv';
+
+let SHEET_CSV = SHEET_THIRD;
+
+
+const resultEl = document.getElementById('result');
+const searchBtn = document.getElementById('searchBtn');
+const nidInput = document.getElementById('nid');
+
+let headers=[], rows=[], indexByHeader={}, lookupByNid={};
+
+
+function updateSheetLink(){
+  const selected = document.querySelector('input[name="stage"]:checked');
+  if(!selected){
+    resultEl.innerHTML='<div class="error">من فضلك اختر المرحلة</div>';
+    throw new Error('stage not selected');
+  }
+  SHEET_CSV = selected.value === 'third'
+    ? SHEET_THIRD
+    : SHEET_FIRST_SECOND;
+}
+
+function cleanCell(s){ 
+  if(!s && s!==0) return ''; 
+  s=String(s).trim(); 
+  if(s.length>=2 && s[0]==='"' && s[s.length-1]==='"'){ 
+    s=s.slice(1,-1).replace(/""/g,'"'); 
+  } 
+  return s; 
+}
+
+
+function parseCSV(text){ 
+  const lines=text.split(/\r?\n/).filter(l=>l.trim()!==''); 
+  return lines.map(line=>{ 
+    const result=[]; 
+    let cur='', inQuotes=false; 
+    for(let i=0;i<line.length;i++){ 
+      const ch=line[i]; 
+      if(ch==='\"'&&line[i+1]==='\"'){ cur+='"'; i++; continue;} 
+      if(ch==='\"'){inQuotes=!inQuotes; continue;} 
+      if(ch===','&&!inQuotes){result.push(cur); cur=''; continue;} 
+      cur+=ch; 
+    }
+    result.push(cur); 
+    return result.map(cleanCell); 
+  }); 
+}
+
+
+async function loadSheet(){
+  try{
+    const resp=await fetch(SHEET_CSV);
+    if(!resp.ok) throw new Error('فشل في جلب الشيت');
+    const text=await resp.text();
+    const parsed=parseCSV(text);
+    if(parsed.length<1) throw new Error('الشيت فارغ');
+
+    headers=parsed[0].map(h=>h.replace(/\u200E|\u200F/g,'').trim());
+    rows=parsed.slice(1);
+
+    indexByHeader={};
+    headers.forEach((h,i)=>indexByHeader[h]=i);
+
+    const nidIndex=indexByHeader['الرقم القومى'] ?? 0;
+
+    lookupByNid={};
+    rows.forEach(r=>{ 
+      const nid=(r[nidIndex]||'').replace(/\s+/g,'').trim(); 
+      if(nid) lookupByNid[nid]=r; 
+    });
+  }catch(err){ 
+    resultEl.innerHTML=`<div class="error">${err.message}</div>`; 
+  }
+}
+
+
+function showResultRow(row){
+  if(!row){ 
+    resultEl.innerHTML='<div class="error">لم يتم العثور على الطالب بالرقم المدخل.</div>'; 
+    return; 
+  }
+
+  const basicFields = ['اسم الطالب','الرقم القومى','الصف الدراسي','الفصل','الامتحان'];
+
+  let basicTable = '<table class="basic-info-table"><tbody><tr>';
+  basicFields.forEach(h=>{
+    if(indexByHeader[h] !== undefined){
+      basicTable += `<th>${h}</th>`;
+    }
+  });
+  basicTable += '</tr><tr>';
+
+  basicFields.forEach(h=>{
+    if(indexByHeader[h] !== undefined){
+      basicTable += `<td data-label="${h}">${row[indexByHeader[h]]||''}</td>`;
+    }
+  });
+
+  basicTable += '</tr></tbody></table>';
+
+  let tableHtml = '<table><thead><tr><th>المادة</th><th>درجة الطالب</th></tr></thead><tbody>';
+  headers.forEach(h=>{
+    if(!basicFields.includes(h)){
+      tableHtml += `
+        <tr>
+          <td>${h}</td>
+          <td class="grade">${row[indexByHeader[h]]||''}</td>
+        </tr>`;
+    }
+  });
+  tableHtml += '</tbody></table>';
+
+  resultEl.innerHTML = basicTable + tableHtml;
+}
+
+
+searchBtn.addEventListener('click', async () => {
+  try{
+    updateSheetLink();
+
+    const nid=(nidInput.value||'').replace(/\s+/g,'').trim();
+    if(!nid){
+      resultEl.innerHTML='<div class="error">من فضلك ادخل الرقم القومي.</div>';
+      return;
+    }
+
+    await loadSheet();
+    showResultRow(lookupByNid[nid]);
+  }catch{}
+});
+
+
+nidInput.addEventListener('keydown',e=>{
+  if(e.key==='Enter') searchBtn.click();
+});
+</script>
+
+</body>
+</html> -->
+
+<!doctype html>
+<html lang="ar">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>نتيجة مدرسة الرحاب الخاصة</title>
+
+<style>
+body{
+  font-family:"Segoe UI",Tahoma,Arial,sans-serif;
+  direction:rtl;
+  margin:0;
+  background:linear-gradient(135deg,#cce0f0,#f5f7fb);
+}
+
+.container{max-width:800px;margin:20px auto;padding:20px}
+
+.card{
+  background:#fff;
+  border-radius:25px;
+  box-shadow:0 15px 40px rgba(0,0,0,.15);
+  padding:40px 30px 30px;
+  position:relative;
+}
+
+.page-title{
+  text-align:center;
+  font-size:28px;
+  color:#13245C;
+  margin-bottom:30px;
+  font-weight:700;
+}
+
+.logo-container{
+  width:80px;height:80px;border-radius:50%;
+  border:3px solid #13245C;
+  position:absolute;top:-40px;left:30px;
+  background:#fff;
+  display:flex;align-items:center;justify-content:center;
+}
+
+.logo-container img{width:65px;height:65px;object-fit:contain}
+
+.controls{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:12px;
+  margin-bottom:30px;
+}
+
+select,input,button{
+  width:320px;
+  max-width:100%;
+  padding:14px;
+  font-size:16px;
+  border-radius:12px;
+}
+
+select,input{
+  border:1px solid #b0c7d8;
+  text-align:center;
+}
+
+button{
+  border:none;
+  background:#13245C;
+  color:#fff;
+  font-weight:600;
+  cursor:pointer;
+}
+
+button:hover{background:#095b7c}
+
+.result{margin-top:25px}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:15px;
+  font-size:17px;
+}
+
+th,td{
+  border:1px solid #e6eef5;
+  padding:12px;
+  text-align:center;
+}
+
+th{background:#13245C;color:#fff}
+td.grade{font-weight:700}
+
+h3{
+  margin-top:30px;
+  text-align:center;
+  color:#13245C;
+}
+
+.error{
+  color:#b00020;
+  font-weight:700;
+  text-align:center;
+  margin-top:15px;
+}
+
+/* موبايل */
+@media(max-width:580px){
+  select,input,button{width:100%}
+
+  .basic-info-table th{display:none}
+
+  .basic-info-table,
+  .basic-info-table tbody,
+  .basic-info-table tr,
+  .basic-info-table td{display:block}
+
+  .basic-info-table td{
+    background:#d6edf8;
+    margin-bottom:10px;
+    border-radius:6px;
+    position:relative;
+    padding:14px 120px 14px 12px;
+  }
+
+  .basic-info-table td::before{
+    content:attr(data-label);
+    position:absolute;
+    right:0;
+    top:0;
+    width:110px;
+    height:100%;
+    background:#13245C;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:bold;
+    border-radius:6px 0 0 6px;
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <div class="card">
+
+    <h1 class="page-title">نتيجة طلاب مدرسة الرحاب الخاصة</h1>
+
+    <div class="logo-container">
+      <img src="./img/logo.jpeg">
+    </div>
+
+    <div class="controls">
+      <select id="monthSelect">
+        <option value="" disabled selected>اختر شهر النتيجة ▼</option>
+        <option value="october">نتيجة نصف العام</option>
+        <option value="november">نتيجة شهر نوفمبر</option>
+      </select>
+
+      <input id="nid" type="text" placeholder="الرقم القومي">
+
+      <button id="searchBtn">عرض النتيجة</button>
+    </div>
+
+    <div id="result" class="result"></div>
+  </div>
+</div>
+<script>
+
+const SHEET_OCTOBER =
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vSbLUbtEUtrfeOjAaGba5jYmHAgMxiWj4B6K-SOSvuzucZh7b-GrNPfEyAOlbhuCVHAPJf86NIMJYGL/pub?gid=0&single=true&output=csv';
+
+const SHEET_NOVEMBER =
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vSwsZdcmEqzDXatePFE6KUN9aMG46wbZ4GEdiYaz_maTiQeag8NcoeSGm4BFoJWxOKVnd8pDaKTZEL0/pub?gid=0&single=true&output=csv';
+
+let SHEET_CSV = '';
+
+const resultEl = document.getElementById('result');
+const searchBtn = document.getElementById('searchBtn');
+const nidInput = document.getElementById('nid');
+const monthSelect = document.getElementById('monthSelect');
+
+let headers = [];
+let rows = [];
+let indexByHeader = {};
+let lookupByNid = {};
+
+
+function cleanCell(s){
+  if(!s && s !== 0) return '';
+  s = String(s).trim();
+  if(s[0] === '"' && s[s.length-1] === '"') s = s.slice(1,-1);
+  return s;
+}
+
+
+function parseCSV(text){
+  return text.split(/\r?\n/)
+    .filter(l => l.trim())
+    .map(l => l.split(',').map(cleanCell));
+}
+
+
+async function loadSheet(){
+  const r = await fetch(SHEET_CSV);
+  const t = await r.text();
+  const p = parseCSV(t);
+
+  headers = p[0];
+  rows = p.slice(1);
+
+  indexByHeader = {};
+  headers.forEach((h,i)=> indexByHeader[h] = i);
+
+  const nidIndex = indexByHeader['الرقم القومى'] ?? 0;
+  lookupByNid = {};
+
+  rows.forEach(r=>{
+    const n = (r[nidIndex] || '').replace(/\s+/g,'');
+    if(n) lookupByNid[n] = r;
+  });
+}
+
+
+function buildAutoTable(filterFn, row){
+  let html = `
+    <table>
+      <tr>
+        <th>المادة</th>
+        <th>الدرجة</th>
+      </tr>
+  `;
+
+  let hasData = false;
+headers.forEach(h => {
+  if (
+    filterFn(h) &&
+    !h.includes('أولا درجات التقييم المبدئى') &&
+    !h.includes('ثانيا درجات التقييم النهائى')
+  ) {
+    hasData = true;
+    html += `
+      <tr>
+        <td>${h.replace(/مبد.*|نهائ.*/,'').trim()}</td>
+        <td class="grade">${row[indexByHeader[h]] || ''}</td>
+      </tr>
+    `;
+  }
+});
+
+
+
+  html += '</table>';
+  return hasData ? html : '';
+}
+
+
+function showResultRow(row){
+  if(!row){
+    resultEl.innerHTML = '<div class="error">لم يتم العثور على الطالب</div>';
+    return;
+  }
+
+  const basic = [
+    'اسم الطالب',
+    'الرقم القومى',
+    'الصف الدراسى',
+    'الفصل',
+    'الامتحان'
+  ];
+
+  let html = '<table class="basic-info-table"><tr>';
+  basic.forEach(h=>{
+    if(indexByHeader[h] != null) html += `<th>${h}</th>`;
+  });
+  html += '</tr><tr>';
+  basic.forEach(h=>{
+    if(indexByHeader[h] != null)
+      html += `<td data-label="${h}">${row[indexByHeader[h]] || ''}</td>`;
+  });
+  html += '</tr></table>';
+
+  /* نصف العام */
+if(monthSelect.value === 'october'){
+
+  const prelimTable = buildAutoTable(
+    h => h.includes('مبد'),
+    row
+  );
+
+  if(prelimTable){
+    html += `
+      <h3 style="margin-top:25px;text-align:center;color:#13245C">
+        أولًا: درجات التقييم المبدئي
+      </h3>
+      ${prelimTable}
+    `;
+  }
+
+  const finalTable = buildAutoTable(
+    h => h.includes('نهائ'),
+    row
+  );
+
+  if(finalTable){
+    html += `
+      <h3 style="margin-top:25px;text-align:center;color:#13245C">
+        ثانيًا: درجات التقييم النهائي
+      </h3>
+      ${finalTable}
+    `;
+  }
+}
+
+
+
+  else{
+    html += `
+      <table>
+        <tr>
+          <th>المادة</th>
+          <th>الدرجة</th>
+        </tr>
+    `;
+    headers.forEach(h=>{
+      if(!basic.includes(h)){
+        html += `
+          <tr>
+            <td>${h}</td>
+            <td class="grade">${row[indexByHeader[h]] || ''}</td>
+          </tr>
+        `;
+      }
+    });
+    html += '</table>';
+  }
+
+  resultEl.innerHTML = html;
+}
+
+
+searchBtn.onclick = async () => {
+  const month = monthSelect.value;
+  if(!month){
+    resultEl.innerHTML = '<div class="error">اختر شهر النتيجة</div>';
+    return;
+  }
+
+  SHEET_CSV = month === 'october' ? SHEET_OCTOBER : SHEET_NOVEMBER;
+
+  const nid = nidInput.value.replace(/\s+/g,'');
+  if(!nid){
+    resultEl.innerHTML = '<div class="error">ادخل الرقم القومي</div>';
+    return;
+  }
+
+  await loadSheet();
+  showResultRow(lookupByNid[nid]);
+};
+</script>
+
+</body>
+</html>
